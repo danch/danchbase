@@ -1,0 +1,16 @@
+syntax = "proto3";
+package pb;
+
+message DBReply {
+    enum Status {
+        Unknown = 0;
+        OK = 200;
+        Success = 201;
+        InvalidRequest = 400;
+        NetworkError = 450;
+        InternalError = 500;
+    }
+
+    int32 version = 1;
+    Status status = 2;
+}

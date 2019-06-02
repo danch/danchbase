@@ -1,0 +1,16 @@
+syntax = "proto3";
+package pb;
+
+message DBRequest {
+    enum Verb {
+        Put = 0;
+        Get = 1;
+    }
+
+    int32 version = 1;
+    Verb verb = 2;
+    string dbName = 3;
+    string tableName = 4;
+    string startKey = 5;
+    int32 datalength = 6;
+}

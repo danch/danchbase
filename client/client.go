@@ -86,7 +86,7 @@ func (client *Client) Put(key string, value []byte) error {
 	err = binary.Read(client.connection, binary.LittleEndian, &msgSize)
 	buffer = make([]byte, msgSize)
 	count, err = client.connection.Read(buffer)
-	if count != len(value) {
+	if count != int(msgSize) {
 		return newClientError("Error sending request (too few bytes read)", nil)
 	}
 	if err != nil {

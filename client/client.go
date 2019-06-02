@@ -46,17 +46,49 @@ func NewClient(hostAndPort string) (*Client, error) {
 func (client *Client) Close() {
 	client.connection.Close()
 }
+//Get a record from the database
+func (client *Client) Get(key string) (*pb.DBReply, error) {
+	request := pb.NewRequest(pb.DBRequest_Get, "notimplemented", "notimplemented", key, nil)
+	return client.exchange(request)
+}
 
 // Put a record to the server
-func (client *Client) Put(key string, value []byte) error {
-	request := new(pb.DBRequest)
-	request.Version = ProtocolVersion
-	request.Verb = pb.DBRequest_Put
-	request.DbName = "notimplemented"
-	request.TableName = "notimplemented"
-	request.StartKey = key
-	request.Datalength = int32(len(value))
+func (client *Client) Put(key string, value []byte) (*pb.DBReply, error) {
+	request := pb.NewRequest(pb.DBRequest_Put, "notimplemented", "notimplemented", key, value)
+	return client.exchange(request)
+}
 
+func (client *Client) exchange(request *pb.DBRequest) (*pb.DBReply, error) {
+	err := client.sendMessage(request)
+	if (err != nil) {
+		return nil, err
+	}
+
+	//TODO asycn send
+	return client.getReply()
+}
+
+func (client *Client) getReply() (*pb.DBReply, error) {
+	var msgSize uint32
+	err := binary.Read(client.connection, binary.LittleEndian, &msgSize)
+	var buffer = make([]byte, msgSize)
+	count, err := client.connection.Read(buffer)
+	if count != int(msgSize) {
+		return nil, newClientError("Error sending request (too few bytes read)", nil)
+	}
+	if err != nil {
+		return nil, err
+	}
+	var reply = new(pb.DBReply)
+	err = proto.Unmarshal(buffer, reply)
+	if !pb.Success(reply.GetStatus()) {
+		var stat = reply.GetStatus()
+		return nil, newClientError("Error from server", &stat)
+	}
+	return reply, nil
+}
+
+func (client *Client) sendMessage(request *pb.DBRequest) error {
 	buffer, err := proto.Marshal(request)
 	if err != nil {
 		return err
@@ -74,30 +106,5 @@ func (client *Client) Put(key string, value []byte) error {
 	if err != nil {
 		return err
 	}
-	count, err = client.connection.Write(value)
-	if count != len(value) {
-		return newClientError("Error sending request (too few bytes written)", nil)
-	}
-	if err != nil {
-		return err
-	}
-
-	//TODO asycn send
-	err = binary.Read(client.connection, binary.LittleEndian, &msgSize)
-	buffer = make([]byte, msgSize)
-	count, err = client.connection.Read(buffer)
-	if count != int(msgSize) {
-		return newClientError("Error sending request (too few bytes read)", nil)
-	}
-	if err != nil {
-		return err
-	}
-	var reply = new(pb.DBReply)
-	err = proto.Unmarshal(buffer, reply)
-	if reply.GetStatus() != pb.DBReply_Success {
-		var stat = reply.GetStatus()
-		return newClientError("Error from server", &stat)
-	}
-
 	return nil
 }

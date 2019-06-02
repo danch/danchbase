@@ -3,6 +3,7 @@ package net
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/golang/protobuf/proto"
@@ -70,8 +71,12 @@ func acceptLoop(listener net.Listener, queue chan com.RequestContext) {
 		go processLoop(conn, queue)
 	}
 }
-
+func cleanup(conn net.Conn) {
+	fmt.Println("Closing connection")
+	conn.Close()
+}
 func processLoop(conn net.Conn, queue chan com.RequestContext) {
+	defer cleanup(conn)
 	var errorChannel = make(chan bool)
 	for {
 		select {
@@ -86,7 +91,9 @@ func processLoop(conn net.Conn, queue chan com.RequestContext) {
 		var msgSize uint32
 		err := binary.Read(conn, binary.LittleEndian, &msgSize)
 		if err != nil {
-			fmt.Println("Error reading msg size " + err.Error())
+			if (err != io.EOF) {
+				fmt.Println("Error reading msg size " + err.Error())
+			}
 			break
 		}
 		buffer := make([]byte, msgSize)
@@ -104,22 +111,10 @@ func processLoop(conn net.Conn, queue chan com.RequestContext) {
 			go send(pb.DBReply_InvalidRequest, netRequestContext{nil, nil, conn}, errorChannel)
 			continue
 		}
-		var msgData []byte
-		if request.Datalength > 0 {
-			msgData = make([]byte, request.Datalength)
-			count, err = conn.Read(msgData)
-			if ne := checkRead(uint32(count), err, uint32(request.Datalength)); err != nil {
-				go send(pb.DBReply_InvalidRequest, netRequestContext{nil, nil, conn}, errorChannel)
-				if !ne.recoverable {
-					break
-				}
-				continue
-			}
-		}
+		var msgData = request.GetData()
 
 		queue <- netRequestContext{request, msgData, conn}
 	}
-	conn.Close()
 }
 
 func checkRead(count uint32, err error, msgSize uint32) *Error {

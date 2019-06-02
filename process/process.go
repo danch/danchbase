@@ -1,10 +1,7 @@
 package process
 
 import (
-	"fmt"
-
 	"github.com/danch/danchbase/pb"
-	"github.com/danch/danchbase/meta"
 	"github.com/danch/danchbase/meta/reg"
 	"github.com/danch/danchbase/com"
 )
@@ -19,21 +16,23 @@ func Process(ctx com.RequestContext) {
 	}
 	switch {
 	case request.GetVerb() == pb.DBRequest_Put:
-		record := meta.NewRecord(request.GetStartKey(), ctx.Data())
+		record := pb.NewRecord(request.GetStartKey(), ctx.Data())
 		err := store.Put(record)
 		if (err != nil) {
-			err = sendReply(ctx, pb.DBReply_InternalError)
+			err = sendReply(ctx, pb.DBReply_InternalError, nil)
 		}
-		err = sendReply(ctx, pb.DBReply_Success)
+		err = sendReply(ctx, pb.DBReply_Success, nil)
 	case request.GetVerb() == pb.DBRequest_Get:
-		fmt.Println("Recieved request")
-		err = sendReply(ctx, pb.DBReply_OK)
+		record, err := store.Get(request.GetStartKey())
+		if (err != nil) {
+			sendReply(ctx, pb.DBReply_InternalError, nil)
+		}
+		err = sendReply(ctx, pb.DBReply_OK, record)
 	}
 }
 
-func sendReply(ctx com.RequestContext, status pb.DBReply_Status) error {
-	var reply = new(pb.DBReply)
-	reply.Status = status
+func sendReply(ctx com.RequestContext, status pb.DBReply_Status, record *pb.Record) error {
+	var reply = pb.NewReply(status, record)
 	err := ctx.Send(reply)
 	return err
 }

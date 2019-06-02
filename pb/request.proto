@@ -12,5 +12,5 @@ message DBRequest {
     string dbName = 3;
     string tableName = 4;
     string startKey = 5;
-    int32 datalength = 6;
+    bytes data = 6;
 }

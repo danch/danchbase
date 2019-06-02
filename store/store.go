@@ -4,13 +4,14 @@ import (
 	"container/list"
 	"strings"
 
+	"github.com/danch/danchbase/pb"
 	"github.com/danch/danchbase/meta"
 )
 
 // Store represents a store containing a contiguous key range within a table
 type Store interface {
-	Put(record *meta.Record) error
-	Get(key string) (*meta.Record, error)
+	Put(record *pb.Record) error
+	Get(key string) (*pb.Record, error)
 	StartKey() string
 	EndKey() string
 }
@@ -44,15 +45,15 @@ func (store *LocalStore) EndKey() string {
 }
 
 // Put upserts the record into the store
-func (store *LocalStore) Put(record *meta.Record) error {
+func (store *LocalStore) Put(record *pb.Record) error {
 	if store.currentSegment.Front() == nil {
 		store.currentSegment.PushFront(record)
 		return nil
 	}
 	//linear search for now
 	for e := store.currentSegment.Front(); e != nil; e = e.Next() {
-		var r = e.Value.(*meta.Record)
-		if strings.Compare(r.Key(), record.Key()) > 0 {
+		var r = e.Value.(*pb.Record)
+		if strings.Compare(r.GetKey(), record.GetKey()) > 0 {
 			store.currentSegment.InsertBefore(record, e)
 			return nil
 		}
@@ -62,11 +63,11 @@ func (store *LocalStore) Put(record *meta.Record) error {
 }
 
 // Get the record with the key, or nil of not found
-func (store *LocalStore) Get(key string) (*meta.Record, error) {
+func (store *LocalStore) Get(key string) (*pb.Record, error) {
 	//linear search for now
 	for e := store.currentSegment.Front(); e != nil; e = e.Next() {
-		var r = e.Value.(*meta.Record)
-		if strings.Compare(r.Key(), key) == 0 {
+		var r = e.Value.(*pb.Record)
+		if strings.Compare(r.GetKey(), key) == 0 {
 			return r, nil
 		}
 	}

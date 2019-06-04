@@ -8,13 +8,13 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-const ProtocolVersion = 1
 
 //Client represents a danchbase client connection
 type Client struct {
 	connection net.Conn
 }
 
+//ClientError error carrying status
 type ClientError struct {
 	msg    string
 	status *pb.DBReply_Status

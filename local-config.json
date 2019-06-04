@@ -1,0 +1,5 @@
+{
+	"DataDir": "/tmp/danchbase",
+	"Port": "1720",
+	"BindHost": "localhost"
+}

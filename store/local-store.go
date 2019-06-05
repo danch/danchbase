@@ -1,8 +1,8 @@
 package store
 
 import (
-	"container/list"
-	"strings"
+
+	"github.com/google/btree"
 
 	"github.com/danch/danchbase/pb"
 	"github.com/danch/danchbase/meta"
@@ -20,7 +20,7 @@ type LocalStore struct {
 	regionEnd   string
 	ready		bool
 
-	currentSegment *list.List
+	currentSegment *btree.BTree
 	currentTxLog txlog.TxLog
 }
 
@@ -32,7 +32,7 @@ func NewStore(table *meta.Table, regionID, startKey, endKey string) (*LocalStore
 	s.regionID = regionID
 	s.regionStart = startKey
 	s.regionEnd = endKey
-	s.currentSegment = list.New()
+	s.currentSegment = btree.New(3)
 	log, err := txlog.NewTransactionLog(regionID)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,9 @@ func Recover(txFilePath string) (*LocalStore, error) {
 	store.regionStart = ""
 	store.regionEnd = ""
 	store.ready = false
-	store.currentSegment = list.New()
+
+	store.currentSegment = btree.New(3)
+
 	store.currentTxLog = log
 	
 	go store.recoverTransactions(txFilePath, txChannel)
@@ -95,34 +97,14 @@ func (store *LocalStore) Put(record *pb.Record) error {
 }
 
 func (store *LocalStore) insertCurrent(record *pb.Record) {
-	if store.currentSegment.Front() == nil {
-		store.currentSegment.PushFront(record)
-		return
-	}
-	//linear search for now
-	for e := store.currentSegment.Front(); e != nil; e = e.Next() {
-		var r = e.Value.(*pb.Record)
-		if strings.Compare(r.GetKey(), record.GetKey()) > 0 {
-			store.currentSegment.InsertBefore(record, e)
-			return
-		}
-	}
-	store.currentSegment.PushBack(record)
+	store.currentSegment.ReplaceOrInsert(treeItem{record})
 }
 
 // Get the record with the key, or nil of not found
 func (store *LocalStore) Get(key string) (*pb.Record, error) {
-	if !store.ready {
-		return nil, StoreNotReady{}
-	}
-	//linear search for now
-	for e := store.currentSegment.Front(); e != nil; e = e.Next() {
-		var r = e.Value.(*pb.Record)
-		if strings.Compare(r.GetKey(), key) == 0 {
-			return r, nil
-		}
-	}
-	return nil, nil
+	foundItem := store.currentSegment.Get(treeKey{key})
+	found := foundItem.(treeItem).record
+	return found, nil
 }
 
 func (store *LocalStore) Table() *meta.Table {
@@ -130,4 +112,31 @@ func (store *LocalStore) Table() *meta.Table {
 }
 func (store *LocalStore) RegionID() string {
 	return store.regionID
+}
+
+type treeItem struct {
+	record *pb.Record
+}
+func (me treeItem) Less(than btree.Item) bool {
+	switch he := than.(type) {
+	case treeItem:
+		return me.record.Key < he.record.Key
+	case treeKey:
+		return me.record.Key < he.key
+	default:
+		return false
+	}
+}
+type treeKey struct {
+	key string
+}
+func (me treeKey) Less(than btree.Item) bool {
+	switch he := than.(type) {
+	case treeItem:
+		return me.key < he.record.Key
+	case treeKey:
+		return me.key < he.key
+	default:
+		return false
+	}
 }

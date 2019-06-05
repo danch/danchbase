@@ -9,10 +9,6 @@ import (
 type MetaStoreError struct {
 	msg string
 }
-func newMetaStoreError(msg string) MetaStoreError {
-	e := MetaStoreError{msg}
-	return e
-}
 func (mse MetaStoreError) Error() string {
 	return mse.msg
 }
@@ -28,9 +24,16 @@ var (
 
 // GetStore returns the store for the given table/key
 func GetStore(tablename, key string) (store.Store, error) {
+	for _, v := range storeRegistry {
+		if len(v) >  0 {
+			return v[0].store, nil
+		}
+	}
+	return nil, MetaStoreError{"Unknown table"}
+	/*
 	regionList := storeRegistry[tablename]
 	if regionList == nil {
-		return nil, newMetaStoreError("Unknown table")
+		return nil, MetaStoreError{"Unknown table"}
 	}
 	//TODO linear search for now
 	for _, entry := range regionList {
@@ -38,7 +41,8 @@ func GetStore(tablename, key string) (store.Store, error) {
 			return entry.store, nil
 		}
 	}
-	return nil, newMetaStoreError("Can't find store for key "+key+" in table '"+tablename+"'")
+	*/
+	return nil, MetaStoreError{"Can't find store for key "+key+" in table '"+tablename+"'"}
 }
 // Register a store for a table
 func Register(table *meta.Table, store store.Store) {

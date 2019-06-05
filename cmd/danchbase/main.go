@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"io/ioutil"
 
 	"github.com/danch/danchbase/net"
 	"github.com/danch/danchbase/process"
@@ -16,15 +16,24 @@ import (
 const reqQueue = 16
 const maxInFlight = 16
 
-func main() {
-
-	curdir, _ := os.Getwd()
-	fmt.Println(curdir)
-	conf, err := config.Configure("./local-config.json")
+func dummyInit() error {
+	//see if we have any transaction logs
+	files, err := ioutil.ReadDir(config.GetConfig().TxLogsDir)
 	if (err != nil) {
-		panic(err)
+		return err
 	}
-
+	if (len(files) > 0) {
+		for _, file := range files {
+			if !file.IsDir() {
+				store, err := store.Recover(file.Name())
+				if (err != nil) {
+					return err
+				}
+				reg.Register(store.Table(), store)
+			}
+		}
+		return nil
+	}
 	//dummy up a registry
 	table := meta.NewTable("notimplemented", 32767)
 	store, err := store.NewStore(table, "region1", "", "")
@@ -32,6 +41,21 @@ func main() {
 		panic(err)
 	}
 	reg.Register(table, store)
+
+	return nil
+}
+
+func main() {
+
+	conf, err := config.Configure("./local-config.json")
+	if (err != nil) {
+		panic(err)
+	}
+
+	err = dummyInit()
+	if (err != nil) {
+		panic(err)
+	}
 
 	var semChan = make(chan int, maxInFlight)
 	var processChan = make(chan com.RequestContext, reqQueue)

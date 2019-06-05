@@ -4,6 +4,7 @@ import "github.com/tkanos/gonfig"
 
 // Config holds global configuration settings for danchbase
 type Config struct {
+	TxLogsDir string
 	DataDir string 
 	Port string
 	BindHost string

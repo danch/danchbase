@@ -1,5 +1,6 @@
 {
-	"DataDir": "/tmp/danchbase",
+    "TxLogsDir": "/tmp/danchbase/txlogs",
+	"DataDir": "/tmp/danchbase/tablets",
 	"Port": "1720",
 	"BindHost": "localhost"
 }

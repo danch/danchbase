@@ -1,10 +1,8 @@
 syntax = "proto3";
 package pb;
 
-message Record {
-    string key = 1;
-    bytes data = 2;
-}
+import "pb/record.proto";
+
 message DBReply {
     enum Status {
         Unknown = 0;
@@ -15,7 +13,7 @@ message DBReply {
         InternalError = 500;
     }
 
-    int32 version = 1;
+    int32 version = 1; 
     Status status = 2;
     Record record = 3;
 }
